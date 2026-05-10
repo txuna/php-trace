@@ -27,7 +27,8 @@ ENV PHPIZE_DEPS \
 		libc-dev \
 		make \
 		pkg-config \
-		re2c
+		re2c \
+		bison
 
 # persistent / runtime deps
 RUN set -eux; \
