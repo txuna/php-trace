@@ -1,0 +1,56 @@
+#!/usr/bin/env bpftrace
+/*
+ * function.bt — PHP function entry / return + 실행 시간 측정
+ *
+ * 사용법:
+ *   bpftrace /scripts/function.bt
+ *   bpftrace -e 'include /scripts/function.bt' (인자 변경 시)
+ *
+ * USDT 프로브 인자 (php:function__entry / php:function__return):
+ *   arg0 = char* function_name
+ *   arg1 = char* filename
+ *   arg2 = int   lineno
+ *   arg3 = char* classname
+ *   arg4 = char* scope  ("::" or "->")
+ *
+ * 필터: $1 으로 함수명 prefix 지정 가능 (미지정 시 전체)
+ *   bpftrace /scripts/function.bt "array"
+ */
+
+BEGIN
+{
+    printf("PHP function tracing started. Hit Ctrl-C to stop.\n\n");
+}
+
+usdt:/usr/local/sbin/php-fpm:php:function__entry
+{
+    @start[pid, str(arg0), str(arg3)] = nsecs;
+
+    printf("[ENTER] pid=%-6d %s%s%s()  %s:%d\n",
+           pid,
+           str(arg3),   /* classname     */
+           str(arg4),   /* scope (:: ->) */
+           str(arg0),   /* function_name */
+           str(arg1),   /* filename      */
+           arg2);       /* lineno        */
+}
+
+usdt:/usr/local/sbin/php-fpm:php:function__return
+{
+    $key = @start[pid, str(arg0), str(arg3)];
+    if ($key > 0) {
+        $elapsed_us = (nsecs - $key) / 1000;
+        printf("[EXIT]  pid=%-6d %s%s%s()  %llu us\n",
+               pid,
+               str(arg3),
+               str(arg4),
+               str(arg0),
+               $elapsed_us);
+        delete(@start[pid, str(arg0), str(arg3)]);
+    }
+}
+
+END
+{
+    clear(@start);
+}

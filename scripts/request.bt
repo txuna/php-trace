@@ -1,0 +1,37 @@
+#!/usr/bin/env bpftrace
+/*
+ * request.bt — PHP request startup 추적
+ *
+ * 사용법:
+ *   bpftrace /scripts/request.bt
+ *
+ * USDT 프로브 인자 (php:request__startup):
+ *   arg0 = char* file         (실행 파일 경로)
+ *   arg1 = char* request_uri  (요청 URI)
+ *   arg2 = char* request_method (HTTP 메서드)
+ */
+
+BEGIN
+{
+    printf("PHP request tracing started. Hit Ctrl-C to stop.\n\n");
+    printf("%-10s %-6s %-8s %-30s %s\n",
+           "TIME(us)", "PID", "METHOD", "URI", "FILE");
+}
+
+usdt:/usr/local/sbin/php-fpm:php:request__startup
+{
+    printf("%-10llu %-6d %-8s %-30s %s\n",
+           elapsed / 1000,
+           pid,
+           str(arg2),   /* request_method */
+           str(arg1),   /* request_uri    */
+           str(arg0));  /* file           */
+}
+
+usdt:/usr/local/sbin/php-fpm:php:request__shutdown
+{
+    printf("%-10llu %-6d [shutdown] %s\n",
+           elapsed / 1000,
+           pid,
+           str(arg0));
+}

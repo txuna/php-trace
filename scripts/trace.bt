@@ -1,0 +1,71 @@
+#!/usr/bin/env bpftrace
+/*
+ * trace.bt — request + function__entry/return 통합 추적
+ *            함수별 총 호출 횟수 & 누적 실행시간 히스토그램 출력
+ *
+ * 사용법:
+ *   bpftrace /scripts/trace.bt
+ */
+
+BEGIN
+{
+    printf("PHP USDT full trace started. Hit Ctrl-C for summary.\n");
+}
+
+/* ── Request lifecycle ─────────────────────────────── */
+
+usdt:/usr/local/sbin/php-fpm:php:request__startup
+{
+    @req_start[pid] = nsecs;
+    printf("\n[REQ START] pid=%d  %s %s  (%s)\n",
+           pid, str(arg2), str(arg1), str(arg0));
+}
+
+usdt:/usr/local/sbin/php-fpm:php:request__shutdown
+{
+    $dur = @req_start[pid] > 0
+         ? (nsecs - @req_start[pid]) / 1000
+         : 0;
+    printf("[REQ END]   pid=%d  %s  total=%llu us\n",
+           pid, str(arg0), $dur);
+    delete(@req_start[pid]);
+}
+
+/* ── Function entry / return ───────────────────────── */
+
+usdt:/usr/local/sbin/php-fpm:php:function__entry
+{
+    @fn_start[pid, str(arg0), str(arg3)] = nsecs;
+    @call_count[str(arg3), str(arg4), str(arg0)]++;
+}
+
+usdt:/usr/local/sbin/php-fpm:php:function__return
+{
+    $t = @fn_start[pid, str(arg0), str(arg3)];
+    if ($t > 0) {
+        $us = (nsecs - $t) / 1000;
+        @fn_latency_us[str(arg3), str(arg4), str(arg0)] = hist($us);
+        @fn_total_us[str(arg3), str(arg4), str(arg0)]   += $us;
+        delete(@fn_start[pid, str(arg0), str(arg3)]);
+    }
+}
+
+/* ── Summary on Ctrl-C ─────────────────────────────── */
+
+END
+{
+    printf("\n========== Call Count ==========\n");
+    print(@call_count);
+
+    printf("\n========== Total Time (us) ======\n");
+    print(@fn_total_us);
+
+    printf("\n========== Latency Histogram ====\n");
+    print(@fn_latency_us);
+
+    clear(@req_start);
+    clear(@fn_start);
+    clear(@call_count);
+    clear(@fn_total_us);
+    clear(@fn_latency_us);
+}

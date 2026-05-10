@@ -27,3 +27,7 @@ down:
 ## bpftrace 컨테이너에 bash 접속
 exec-bpftrace:
 	docker compose exec bpftrace bash
+
+## bpftrace 스크립트 실행 (예: make trace SCRIPT=request.bt)
+trace:
+	docker compose exec bpftrace bash /scripts/run.sh /scripts/$(SCRIPT)
