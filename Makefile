@@ -1,5 +1,8 @@
 
-.PHONY: build build-fpm build-bpftrace run-fpm up down exec-bpftrace
+target ?= level3
+COMPOSE = docker compose -f examples/$(target)/docker-compose.yml
+
+.PHONY: build build-fpm build-bpftrace run-fpm up down exec-bpftrace trace
 
 ## php-fpm 이미지 빌드 (php-fpm/Dockerfile)
 build-fpm:
@@ -18,16 +21,16 @@ run-fpm:
 
 ## docker compose 기동 (php-fpm + nginx + bpftrace)
 up:
-	docker compose up -d --build
+	$(COMPOSE) up -d --build
 
 ## docker compose 종료
 down:
-	docker compose down
+	$(COMPOSE) down
 
 ## bpftrace 컨테이너에 bash 접속
 exec-bpftrace:
-	docker compose exec bpftrace bash
+	$(COMPOSE) exec bpftrace bash
 
 ## bpftrace 스크립트 실행 (예: make trace SCRIPT=request.bt)
 trace:
-	docker compose exec bpftrace bash /scripts/run.sh /scripts/$(SCRIPT)
+	$(COMPOSE) exec bpftrace bash /scripts/run.sh /scripts/$(SCRIPT)
