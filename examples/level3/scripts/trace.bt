@@ -1,0 +1,39 @@
+#!/usr/bin/env bpftrace
+
+BEGIN
+{
+    printf("Tracing /app/target ... Hit Ctrl+C to stop.\n\n");
+}
+
+uprobe:/app/target:add
+{
+    $tgid = (uint32)curtask->tgid;
+    printf("ENTRY add      pid=%-6d comm=%-16s a=%-4d b=%d\n",
+           $tgid, comm, arg0, arg1);
+}
+
+uretprobe:/app/target:add
+{
+    $tgid = (uint32)curtask->tgid;
+    printf("EXIT  add      pid=%-6d comm=%-16s ret=%d\n",
+           $tgid, comm, retval);
+}
+
+uprobe:/app/target:multiply
+{
+    $tgid = (uint32)curtask->tgid;
+    printf("ENTRY multiply pid=%-6d comm=%-16s a=%-4d b=%d\n",
+           $tgid, comm, arg0, arg1);
+}
+
+uretprobe:/app/target:multiply
+{
+    $tgid = (uint32)curtask->tgid;
+    printf("EXIT  multiply pid=%-6d comm=%-16s ret=%d\n",
+           $tgid, comm, retval);
+}
+
+END
+{
+    printf("END");   
+}

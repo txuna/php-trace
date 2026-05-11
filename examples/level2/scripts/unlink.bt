@@ -8,12 +8,19 @@ BEGIN
 kprobe:do_unlinkat
 {
     $name = (struct filename *)arg1;
+    /*
+     * pid 빌트인은 get_ns_current_pid_tgid 헬퍼를 사용하는데,
+     * 다른 PID 네임스페이스 프로세스(containerd 등)에서 EINVAL(-22) 반환.
+     * curtask->tgid 는 task_struct 에서 직접 읽어 네임스페이스 무관한 host PID.
+     */
+    $tgid = (uint32)curtask->tgid;
     printf("ENTRY pid=%-6d comm=%-16s file=%s\n",
-           pid, comm, str($name->name));
+           $tgid, comm, str($name->name));
 }
 
 kretprobe:do_unlinkat
 {
+    $tgid = (uint32)curtask->tgid;
     printf("EXIT  pid=%-6d comm=%-16s ret=%ld\n",
-           pid, comm, retval);
+           $tgid, comm, retval);
 }

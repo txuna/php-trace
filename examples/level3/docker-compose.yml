@@ -1,0 +1,39 @@
+services:
+  # 트레이싱 대상: /app/target 을 1초 간격으로 반복 실행
+  target:
+    build:
+      context: .
+      dockerfile: Dockerfile.target
+    volumes:
+      - app:/app          # 빌드된 바이너리를 named volume에 노출
+    command: /app/target
+    stdin_open: true
+    tty: true
+
+  # bpftrace uprobe/uretprobe 트레이서
+  tracer:
+    build:
+      context: ../..      # 프로젝트 루트 (bpftrace/ 포함)
+      dockerfile: bpftrace/Dockerfile
+    privileged: true
+    depends_on:
+      - target            # target이 먼저 시작되어야 volume 초기화됨
+    volumes:
+      - app:/app          # target과 동일한 inode → uprobe 정상 동작
+      - ./scripts:/scripts
+      - /sys/kernel/debug:/sys/kernel/debug:rw
+      - /sys/kernel/tracing:/sys/kernel/tracing:rw
+      - /sys/fs/bpf:/sys/fs/bpf:rw
+    command: bpftrace /scripts/trace.bt
+    stdin_open: true
+    tty: true
+
+  # 수동 테스트용 shell
+  shell:
+    image: ubuntu:24.04
+    command: sleep infinity
+    stdin_open: true
+    tty: true
+
+volumes:
+  app:    # target 컨테이너 시작 시 /app 내용이 자동으로 채워짐
