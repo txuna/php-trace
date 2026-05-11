@@ -1,0 +1,17 @@
+services:
+  kprobe:
+    build:
+      context: ..              # examples/ — vmlinux.h 포함
+      dockerfile: level1/Dockerfile
+    privileged: true
+    volumes:
+      - /sys/kernel/debug:/sys/kernel/debug:rw
+      - /sys/kernel/tracing:/sys/kernel/tracing:rw
+    stdin_open: true
+    tty: true
+
+  shell:
+    image: ubuntu:24.04
+    command: sleep infinity    # 컨테이너 유지
+    stdin_open: true
+    tty: true

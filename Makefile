@@ -1,5 +1,5 @@
 
-target ?= level3
+target ?= level5
 COMPOSE = docker compose -f examples/$(target)/docker-compose.yml
 
 .PHONY: build build-fpm build-bpftrace run-fpm up down exec-bpftrace trace

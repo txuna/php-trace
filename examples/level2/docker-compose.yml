@@ -1,0 +1,18 @@
+services:
+  bpftrace:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    privileged: true
+    volumes:
+      - /sys/kernel/debug:/sys/kernel/debug:rw
+      - /sys/kernel/tracing:/sys/kernel/tracing:rw
+      - /sys/fs/bpf:/sys/fs/bpf:rw
+    stdin_open: true
+    tty: true
+
+  shell:
+    image: ubuntu:24.04
+    command: sleep infinity
+    stdin_open: true
+    tty: true

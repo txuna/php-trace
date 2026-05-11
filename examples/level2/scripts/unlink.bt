@@ -1,0 +1,19 @@
+#!/usr/bin/env bpftrace
+
+BEGIN
+{
+    printf("Tracing do_unlinkat... Hit Ctrl+C to stop.\n\n");
+}
+
+kprobe:do_unlinkat
+{
+    $name = (struct filename *)arg1;
+    printf("ENTRY pid=%-6d comm=%-16s file=%s\n",
+           pid, comm, str($name->name));
+}
+
+kretprobe:do_unlinkat
+{
+    printf("EXIT  pid=%-6d comm=%-16s ret=%ld\n",
+           pid, comm, retval);
+}
