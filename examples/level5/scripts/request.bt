@@ -14,15 +14,15 @@
 BEGIN
 {
     printf("PHP request tracing started. Hit Ctrl-C to stop.\n\n");
-    printf("%-10s %-6s %-8s %-30s %s\n",
-           "TIME(us)", "PID", "METHOD", "URI", "FILE");
+    printf("%-10s %-10s %-6s %-8s %-30s %s\n",
+          "TYPE", "TIME(us)", "PID", "METHOD", "URI", "FILE");
 }
 
 usdt:/usr/local/sbin/php-fpm:php:request__startup
 {
-    printf("%-10llu %-6d %-8s %-30s %s\n",
+    printf("[request] %-10llu %-6d %-8s %-30s %s\n",
            elapsed / 1000,
-           pid,
+           curtask->tgid,
            str(arg2),   /* request_method */
            str(arg1),   /* request_uri    */
            str(arg0));  /* file           */
@@ -30,8 +30,10 @@ usdt:/usr/local/sbin/php-fpm:php:request__startup
 
 usdt:/usr/local/sbin/php-fpm:php:request__shutdown
 {
-    printf("%-10llu %-6d [shutdown] %s\n",
+    printf("[shutdown] %-10llu %-6d %-8s %-30s %s\n",
            elapsed / 1000,
-           pid,
-           str(arg0));
+           curtask->tgid,
+           str(arg2),   /* request_method */
+           str(arg1),   /* request_uri    */
+           str(arg0));  /* file           */
 }

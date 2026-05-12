@@ -27,7 +27,7 @@ usdt:/usr/local/sbin/php-fpm:php:function__entry
     @start[pid, str(arg0), str(arg3)] = nsecs;
 
     printf("[ENTER] pid=%-6d %s%s%s()  %s:%d\n",
-           pid,
+           curtask->tgid,
            str(arg3),   /* classname     */
            str(arg4),   /* scope (:: ->) */
            str(arg0),   /* function_name */
@@ -41,7 +41,7 @@ usdt:/usr/local/sbin/php-fpm:php:function__return
     if ($key > 0) {
         $elapsed_us = (nsecs - $key) / 1000;
         printf("[EXIT]  pid=%-6d %s%s%s()  %llu us\n",
-               pid,
+               curtask->tgid,
                str(arg3),
                str(arg4),
                str(arg0),

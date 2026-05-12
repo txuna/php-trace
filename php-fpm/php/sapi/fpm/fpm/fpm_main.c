@@ -1963,6 +1963,7 @@ fastcgi_request_done:
 			fpm_log_write(NULL);
 
 			efree(SG(request_info).path_translated);
+			// 버그가 맞음. 기여 딸깎
 			SG(request_info).path_translated = NULL;
 
 			php_request_shutdown((void *) 0);

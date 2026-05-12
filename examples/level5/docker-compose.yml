@@ -1,10 +1,13 @@
 services:
   php-fpm:
-    image: php:8.4.7-fpm
+    build:
+      context: ../../php-fpm        # --enable-dtrace + systemtap-sdt-dev 빌드
+      dockerfile: Dockerfile
     environment:
       USE_ZEND_DTRACE: "1"
     volumes:
       - ../../app:/var/www/html:ro
+      - php-bin:/usr/local/sbin     # php-fpm 바이너리 → named volume으로 노출
 
   nginx:
     image: nginx:alpine
@@ -19,14 +22,18 @@ services:
   tracer:
     build:
       context: ../../bpftrace
-    # Share PID namespace with php-fpm so bpftrace can see its processes and USDT probes
-    pid: "service:php-fpm"
     privileged: true
     volumes:
-      - /sys/kernel/debug:/sys/kernel/debug:ro
-      - /sys/kernel/tracing:/sys/kernel/tracing:ro
+      - php-bin:/usr/local/sbin     # php-fpm과 동일 inode → USDT 정상 동작
       - ./scripts:/scripts
+      - /sys/kernel/debug:/sys/kernel/debug:rw
+      - /sys/kernel/tracing:/sys/kernel/tracing:rw
+      - /sys/fs/bpf:/sys/fs/bpf:rw
     depends_on:
       - php-fpm
+    command: /bin/bash
     stdin_open: true
     tty: true
+
+volumes:
+  php-bin:   # php-fpm 시작 시 /usr/local/sbin 내용이 자동으로 채워짐
