@@ -24,7 +24,7 @@ BEGIN
 
 usdt:/usr/local/sbin/php-fpm:php:function__entry
 {
-    @start[pid, str(arg0), str(arg3)] = nsecs;
+    @start[curtask->tgid, str(arg0), str(arg3)] = nsecs;
 
     printf("[ENTER] pid=%-6d %s%s%s()  %s:%d\n",
            curtask->tgid,
@@ -37,7 +37,7 @@ usdt:/usr/local/sbin/php-fpm:php:function__entry
 
 usdt:/usr/local/sbin/php-fpm:php:function__return
 {
-    $key = @start[pid, str(arg0), str(arg3)];
+    $key = @start[curtask->tgid, str(arg0), str(arg3)];
     if ($key > 0) {
         $elapsed_us = (nsecs - $key) / 1000;
         printf("[EXIT]  pid=%-6d %s%s%s()  %llu us\n",
@@ -46,7 +46,7 @@ usdt:/usr/local/sbin/php-fpm:php:function__return
                str(arg4),
                str(arg0),
                $elapsed_us);
-        delete(@start[pid, str(arg0), str(arg3)]);
+        delete(@start[curtask->tgid, str(arg0), str(arg3)]);
     }
 }
 

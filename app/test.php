@@ -1,43 +1,52 @@
-  <?php
-  // /var/www/html/test.php
+<?php
+// /var/www/html/test.php
 
-  function add($a, $b) {
-      return $a + $b;
-  }
+require_once __DIR__ . '/good.php';
 
-  function greet($name) {
-      return "Hello, " . $name . "!";
-  }
+function add($a, $b) {
+    return $a + $b;
+}
 
-  function outer() {
-      return inner();
-  }
+function greet($name) {
+    return "Hello, " . $name . "!";
+}
 
-  function inner() {
-      return "inner result";
-  }
+function outer() {
+    return inner();
+}
 
-  class Calculator {
-      public function multiply($a, $b) {
-          return $a * $b;
-      }
-  }
+function inner() {
+    return "inner result";
+}
 
-  function fib($n) {
-      if ($n <= 1) return $n;
-      return fib($n - 1) + fib($n - 2);
-  }
+class Calculator {
+    public function multiply($a, $b) {
+        return $a * $b;
+    }
+}
 
-  // 실행
-  $result = add(3, 4);
-  echo "add(3,4) = $result\n";
+function fib($n) {
+    if ($n <= 1) return $n;
+    return fib($n - 1) + fib($n - 2);
+}
 
-  $msg = greet("World");
-  echo "$msg\n";
+// 실행
+$result = add(3, 4);
+echo "add(3,4) = $result\n";
 
-  echo "outer() = " . outer() . "\n";
+$msg = greet("World");
+echo "$msg\n";
 
-  $calc = new Calculator();
-  echo "multiply(6, 7) = " . $calc->multiply(6, 7) . "\n";
+echo "outer() = " . outer() . "\n";
 
-  echo "fib(5) = " . fib(5) . "\n";
+$calc = new Calculator();
+echo "multiply(6, 7) = " . $calc->multiply(6, 7) . "\n";
+
+echo "fib(3) = " . fib(3) . "\n";
+
+// good.php 호출
+echo good_message("PHP") . "\n";
+echo "score = " . good_score(80, 20) . "\n";
+
+$checker = new GoodChecker();
+echo "validate(42) = " . ($checker->validate(42) ? "true" : "false") . "\n";

@@ -2,38 +2,56 @@
 /*
  * request.bt — PHP request startup 추적
  *
- * 사용법:
- *   bpftrace /scripts/request.bt
- *
- * USDT 프로브 인자 (php:request__startup):
- *   arg0 = char* file         (실행 파일 경로)
- *   arg1 = char* request_uri  (요청 URI)
- *   arg2 = char* request_method (HTTP 메서드)
+ * USDT 프로브 인자 (php:request__startup / php:request__shutdown):
+ *   arg0 = char* request_file
+ *   arg1 = char* request_uri
+ *   arg2 = char* request_method
  */
 
 BEGIN
 {
+    @rid_seq = 0;   /* 전역 순차 카운터 */
     printf("PHP request tracing started. Hit Ctrl-C to stop.\n\n");
-    printf("%-10s %-10s %-6s %-8s %-30s %s\n",
-          "TYPE", "TIME(us)", "PID", "METHOD", "URI", "FILE");
+    printf("%-8s %-4s %-10s %-6s %-8s %-30s %s\n",
+           "TYPE", "RID", "TIME(us)", "PID", "METHOD", "URI", "FILE");
 }
 
 usdt:/usr/local/sbin/php-fpm:php:request__startup
+/curtask->mm != 0/
 {
-    printf("[request] %-10llu %-6d %-8s %-30s %s\n",
+    @rid_seq++;
+    $rid = @rid_seq;
+
+    /* pid → rid 매핑 저장 (shutdown에서 조회) */
+    @rid_map[curtask->tgid] = $rid;
+
+    printf("[START ] %-4d %-10llu %-6d %-8s %-30s %s\n",
+           $rid,
            elapsed / 1000,
            curtask->tgid,
-           str(arg2),   /* request_method */
-           str(arg1),   /* request_uri    */
-           str(arg0));  /* file           */
+           str(arg2),
+           str(arg1),
+           str(arg0));
 }
 
 usdt:/usr/local/sbin/php-fpm:php:request__shutdown
+/curtask->mm != 0/
 {
-    printf("[shutdown] %-10llu %-6d %-8s %-30s %s\n",
+    $rid = @rid_map[curtask->tgid];
+
+    printf("[END   ] %-4d %-10llu %-6d %-8s %-30s %s\n",
+           $rid,
            elapsed / 1000,
            curtask->tgid,
-           str(arg2),   /* request_method */
-           str(arg1),   /* request_uri    */
-           str(arg0));  /* file           */
+           str(arg2),
+           str(arg1),
+           str(arg0));
+
+    delete(@rid_map[curtask->tgid]);
+}
+
+END
+{
+    clear(@rid_map);
+    clear(@rid_seq);
 }

@@ -1,0 +1,137 @@
+#!/usr/bin/env bpftrace
+/*
+ * execute_ex.bt — zend_execute_data 직접 파싱으로 PHP 함수 호출 추적
+ *
+ * 출처: php-fpm/php/Zend/zend_compile.h
+ *       php-fpm/php/Zend/zend_types.h
+ *       php-fpm/php/Zend/zend_execute_API.c (dtrace_execute_ex 참고)
+ *
+ * ┌─ zend_execute_data (arg0) ─────────────────────────────────────┐
+ * │  +0   opline*   (const zend_op*)                               │
+ * │  +8   call*     (zend_execute_data*)                           │
+ * │  +16  return_value* (zval*)                                    │
+ * │  +24  func*     (zend_function*)                               │
+ * │  +32  This      (zval, 16 bytes)                               │
+ * │         value(8) | u1.type_info(4) | u2.num_args(4)           │
+ * │  +48  prev_execute_data*                                       │
+ * └────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ zend_function / zend_op_array (func*) ────────────────────────┐
+ * │  +0   type           uint8  (1=INTERNAL, 2=USER)               │
+ * │  +1   arg_flags[3]   uint8[3]                                  │
+ * │  +4   fn_flags       uint32                                    │
+ * │  +8   function_name* zend_string*                              │
+ * │  +16  scope*         zend_class_entry*                         │
+ * │  +24  prototype*     zend_function*                            │
+ * │  +32  num_args       uint32                                    │
+ * │  +36  required_num_args uint32                                 │
+ * │  +40  arg_info*      zend_arg_info*                            │
+ * │  +48  attributes*    HashTable*                                │
+ * │  +56  run_time_cache__ptr  void** (ZEND_MAP_PTR_DEF)           │
+ * │  +64  doc_comment*   zend_string*                              │
+ * │  +72  T              uint32                                    │
+ * │  +76  [padding 4]                                              │
+ * │  +80  prop_info*     zend_property_info*  [END common]         │
+ * │  --- op_array only (type==2) ---                               │
+ * │  +88  cache_size     int                                       │
+ * │  +92  last_var       int                                       │
+ * │  +96  last           uint32                                    │
+ * │  +100 [padding 4]                                              │
+ * │  +104 opcodes*       zend_op*                                  │
+ * │  +112 static_variables_ptr__ptr  void** (ZEND_MAP_PTR_DEF)     │
+ * │  +120 static_variables* HashTable*                             │
+ * │  +128 vars*          zend_string**                             │
+ * │  +136 refcount*      uint32_t*                                 │
+ * │  +144 last_live_range int                                      │
+ * │  +148 last_try_catch  int                                      │
+ * │  +152 live_range*    zend_live_range*                          │
+ * │  +160 try_catch_array* zend_try_catch_element*                 │
+ * │  +168 filename*      zend_string*          ◄── 파일명          │
+ * │  +176 line_start     uint32                                    │
+ * │  +180 line_end       uint32                                    │
+ * └────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ zend_string ──────────────────────────────────────────────────┐
+ * │  +0   gc    zend_refcounted_h (refcount:4 + type_info:4 = 8)   │
+ * │  +8   h     zend_ulong (uint64, hash)                          │
+ * │  +16  len   size_t                                             │
+ * │  +24  val[] char  ◄── 실제 문자열 시작                         │
+ * └────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ zend_op (opline*) ─────────────────────────────────────────────┐
+ * │  +0   handler*  const void* (8)                                │
+ * │  +8   op1       znode_op (uint32, 4)                           │
+ * │  +12  op2       znode_op (uint32, 4)                           │
+ * │  +16  result    znode_op (uint32, 4)                           │
+ * │  +20  extended_value uint32                                    │
+ * │  +24  lineno    uint32   ◄── 현재 라인 번호                    │
+ * │  +28  opcode    uint8                                          │
+ * └────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ zend_class_entry (scope*) ─────────────────────────────────────┐
+ * │  +0   type  char                                               │
+ * │  +1   [padding 7]                                              │
+ * │  +8   name* zend_string*   ◄── 클래스명                        │
+ * └────────────────────────────────────────────────────────────────┘
+ */
+
+BEGIN
+{
+    printf("Tracing execute_ex... Hit Ctrl-C to stop.\n\n");
+    printf("%-6s %-11s %-4s %-16s %-20s %-30s %s\n",
+           "PID", "TYPE", "ARGS", "CLASS", "FUNC", "FILE", "LINE");
+}
+
+uprobe:/usr/local/sbin/php-fpm:execute_ex
+/curtask->mm != 0/
+{
+    /* bpftrace requires all $ vars initialized before any conditional use */
+    $fname      = "main";
+    $cname      = "";
+    $fname_file = "";
+    $lineno     = (uint64)0;
+    $num_args   = (uint64)0;
+
+    $ex   = (uint64)arg0;
+
+    /* ── func* (+24) ── */
+    $func = *(uint64*)($ex + 24);
+    if ($func == 0) { return; }
+
+    /* ── type (+0): 1=INTERNAL 2=USER ── */
+    $type = *(uint8*)($func + 0);
+
+    /* ── function_name* (+8) → zend_string->val (+24) ── */
+    $fname_zstr = *(uint64*)($func + 8);
+    if ($fname_zstr != 0) {
+        $fname = str($fname_zstr + 24, 64);
+    }
+
+    /* ── scope* (+16) → class name ── */
+    $scope = *(uint64*)($func + 16);
+    if ($scope != 0) {
+        $cname_zstr = *(uint64*)($scope + 8);
+        $cname = str($cname_zstr + 24, 64);
+    }
+
+    /* ── num_args: execute_data->This.u2 (+32+12 = +44) ── */
+    $num_args = (uint64)*(uint32*)($ex + 44);
+
+    /* ── opline* (+0) → lineno (+24), filename via func->op_array ── */
+    $opline = *(uint64*)($ex + 0);
+    if ($type == 2 && $opline != 0) {
+        $lineno = (uint64)*(uint32*)($opline + 24);
+        $file_zstr = *(uint64*)($func + 168);
+        if ($file_zstr != 0) {
+            $fname_file = str($file_zstr + 24, 128);
+        }
+    }
+
+    if ($type == 1) {
+        printf("%-6d INTERNAL   %-4d %-16s %s\n",
+               curtask->tgid, $num_args, $cname, $fname);
+    } else {
+        printf("%-6d USER       %-4d %-16s %-20s %-30s %d\n",
+               curtask->tgid, $num_args, $cname, $fname, $fname_file, $lineno);
+    }
+}
