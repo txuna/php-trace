@@ -18,4 +18,4 @@ echo ""
 echo "▶  kprobe 실행 (do_unlinkat 후킹)"
 echo "   출력 확인: cat /sys/kernel/debug/tracing/trace_pipe"
 echo ""
-exec /kprobe/kprobe
+# exec /kprobe/kprobe
