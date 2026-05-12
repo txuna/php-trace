@@ -1,0 +1,30 @@
+services:
+  target:
+    build:
+      context: .
+      dockerfile: Dockerfile.target
+    volumes:
+      - app:/app
+    command: /app/target
+    stdin_open: true
+    tty: true
+
+  tracer:
+    build:
+      context: ../..
+      dockerfile: bpftrace/Dockerfile
+    privileged: true
+    depends_on:
+      - target
+    volumes:
+      - app:/app
+      - ./scripts:/scripts
+      - /sys/kernel/debug:/sys/kernel/debug:rw
+      - /sys/kernel/tracing:/sys/kernel/tracing:rw
+      - /sys/fs/bpf:/sys/fs/bpf:rw
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+
+volumes:
+  app:

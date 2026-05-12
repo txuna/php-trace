@@ -16,7 +16,7 @@ services:
     depends_on:
       - php-fpm
 
-  bpftrace:
+  tracer:
     build:
       context: ../../bpftrace
     # Share PID namespace with php-fpm so bpftrace can see its processes and USDT probes

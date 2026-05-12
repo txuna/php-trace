@@ -1,0 +1,14 @@
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    gcc \
+    systemtap-sdt-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY target.c .
+# -O2 허용: DTRACE_PROBE는 asm nop으로 박혀 있어 최적화에도 제거되지 않음
+# readelf -n target | grep stapsdt 으로 프로브 확인 가능
+RUN gcc -O2 -g -o target target.c

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>How USDT Works in Linux</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0f1117;
+    font-family: 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    color: #e2e8f0;
+    width: 1280px;
+    height: 720px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 28px 36px 24px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 20px;
+    flex-shrink: 0;
+  }
+  header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: -0.3px;
+  }
+  header p {
+    font-size: 11px;
+    color: #475569;
+    margin-top: 3px;
+    font-family: monospace;
+    letter-spacing: 0.5px;
+  }
+
+  .flow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px;
+    padding: 16px 14px;
+    border: 1px solid;
+    position: relative;
+    min-width: 0;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+  }
+  .step-num {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    opacity: 0.5;
+  }
+  .step-title {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  /* Step colors */
+  .s1 { background: #1a1730; border-color: #3730a3; }
+  .s1 .step-title { color: #a5b4fc; }
+  .s1 .step-num   { color: #818cf8; }
+
+  .s2 { background: #051a10; border-color: #065f46; }
+  .s2 .step-title { color: #6ee7b7; }
+  .s2 .step-num   { color: #34d399; }
+
+  .s3 { background: #1a1200; border-color: #78350f; }
+  .s3 .step-title { color: #fcd34d; }
+  .s3 .step-num   { color: #f59e0b; }
+
+  .s4 { background: #1a0a0a; border-color: #7f1d1d; }
+  .s4 .step-title { color: #fca5a5; }
+  .s4 .step-num   { color: #f87171; }
+
+  .s5 { background: #0f1520; border-color: #1e293b; }
+  .s5 .step-title { color: #94a3b8; }
+  .s5 .step-num   { color: #64748b; }
+
+  /* Arrow between steps */
+  .arrow-col {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    flex-shrink: 0;
+    color: #334155;
+    font-size: 22px;
+  }
+
+  /* Code block */
+  pre {
+    background: rgba(0,0,0,0.35);
+    border-radius: 7px;
+    padding: 10px 12px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    font-size: 10.5px;
+    line-height: 1.65;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .kw  { color: #c084fc; }
+  .str { color: #34d399; }
+  .fn  { color: #93c5fd; }
+  .cm  { color: #4b5563; }
+  .addr { color: #fbbf24; }
+  .key  { color: #94a3b8; }
+  .val  { color: #6ee7b7; }
+
+  /* VMA table */
+  .vma {
+    background: rgba(0,0,0,0.3);
+    border-radius: 7px;
+    overflow: hidden;
+    border: 1px solid #1f2937;
+    flex-shrink: 0;
+    margin-bottom: 8px;
+  }
+  .vma-hdr {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #4b5563;
+    padding: 5px 10px;
+    border-bottom: 1px solid #1f2937;
+  }
+  .vma-row {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #111827;
+  }
+  .vma-row:last-child { border-bottom: none; }
+  .vma-a {
+    font-family: monospace;
+    font-size: 9.5px;
+    color: #fbbf24;
+    padding: 6px 8px;
+    border-right: 1px solid #1f2937;
+    white-space: nowrap;
+    min-width: 90px;
+  }
+  .vma-v {
+    padding: 6px 10px;
+    font-family: monospace;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .nop  { color: #34d399; }
+  .int3 { color: #f87171; }
+  .badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 3px;
+    letter-spacing: 0.3px;
+  }
+  .b-green { background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid #065f46; }
+  .b-red   { background: rgba(248,113,113,0.15); color: #f87171; border: 1px solid #7f1d1d; }
+
+  /* Chips */
+  .chips { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+  .chip {
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 10.5px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    line-height: 1.3;
+  }
+  .c-red  { background: rgba(248,113,113,0.1); border: 1px solid #7f1d1d; color: #fca5a5; }
+  .c-blue { background: rgba(96,165,250,0.09); border: 1px solid #1e3a5f; color: #93c5fd; }
+  .c-ora  { background: rgba(251,146,60,0.1);  border: 1px solid #78350f; color: #fb923c; }
+
+  /* Description text */
+  .desc {
+    font-size: 10.5px;
+    color: #64748b;
+    line-height: 1.6;
+    margin-top: auto;
+    padding-top: 8px;
+  }
+  .desc b { color: #94a3b8; }
+
+  .mem-note {
+    font-size: 9.5px;
+    color: #334155;
+    font-family: monospace;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed #1e293b;
+  }
+
+  .semi-row {
+    font-size: 10.5px;
+    font-family: monospace;
+    padding: 5px 10px;
+    color: #64748b;
+    border-top: 1px solid #1f2937;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .semi-0 { color: #60a5fa; }
+  .semi-1 { color: #fb923c; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>How USDT Works in Linux</h1>
+  <p>User Statically Defined Tracepoints · eBPF / uprobe instrumentation</p>
+</header>
+
+<div class="flow">
+
+  <!-- Step 1: Authoring -->
+  <div class="step s1">
+    <div class="step-header">
+      <span class="step-num">01</span>
+      <span class="step-title">Authoring</span>
+    </div>
+    <pre><span class="cm">// target.c</span>
+<span class="kw">#include</span> <span class="str">&lt;sys/sdt.h&gt;</span>
+
+<span class="kw">int</span> <span class="fn">add</span>(<span class="kw">int</span> a, <span class="kw">int</span> b) {
+  <span class="fn">DTRACE_PROBE2</span>(
+    <span class="str">myapp</span>, <span class="str">add__entry</span>,
+    a, b);
+  <span class="kw">int</span> ret = a + b;
+  <span class="fn">DTRACE_PROBE1</span>(
+    <span class="str">myapp</span>, <span class="str">add__return</span>,
+    ret);
+  <span class="kw">return</span> ret;
+}</pre>
+    <div class="desc">소스코드에 <b>DTRACE_PROBE 매크로</b>를 삽입.<br>컴파일 시 NOP + ELF 메타데이터로 변환.</div>
+  </div>
+
+  <div class="arrow-col">→</div>
+
+  <!-- Step 2: Compiling -->
+  <div class="step s2">
+    <div class="step-header">
+      <span class="step-num">02</span>
+      <span class="step-title">Compiling</span>
+    </div>
+    <pre><span class="cm">$ gcc -O2 -g -o target \
+    target.c</span>
+
+<span class="cm">── .note.stapsdt ──</span>
+<span class="key">Provider  </span><span class="val">myapp</span>
+<span class="key">Name      </span><span class="val">add__entry</span>
+<span class="key">Location  </span><span class="addr">0x004011a4</span>
+<span class="key">Semaphore </span><span class="addr">0x00601040</span>
+<span class="key">Arguments </span><span class="val">-4@%edi -4@%esi</span></pre>
+    <div class="desc"><b>-O2도 허용.</b> NOP은 asm으로 박혀<br>인라인 최적화에도 제거되지 않음.<br><b>-4@%edi</b> = int32, register edi</div>
+  </div>
+
+  <div class="arrow-col">→</div>
+
+  <!-- Step 3: Loading -->
+  <div class="step s3">
+    <div class="step-header">
+      <span class="step-num">03</span>
+      <span class="step-title">Loading</span>
+    </div>
+    <div class="vma">
+      <div class="vma-hdr">VMA — Process Memory</div>
+      <div class="vma-row">
+        <div class="vma-a">0x4011a4</div>
+        <div class="vma-v nop">nop <span class="badge b-green">0x90</span></div>
+      </div>
+    </div>
+    <div class="semi-row">semaphore = <span class="semi-0">0</span> &nbsp;· inactive</div>
+    <div class="desc" style="margin-top:10px">프로세스 시작 시 NOP 대기 상태.<br><b>Semaphore = 0</b>: 구독자 없음.<br>실행 오버헤드 <b>≈ 0</b>.</div>
+  </div>
+
+  <div class="arrow-col">→</div>
+
+  <!-- Step 4: Register -->
+  <div class="step s4">
+    <div class="step-header">
+      <span class="step-num">04</span>
+      <span class="step-title">Register Probe</span>
+    </div>
+    <div class="vma">
+      <div class="vma-hdr">VMA — Process Memory</div>
+      <div class="vma-row">
+        <div class="vma-a">0x4011a4</div>
+        <div class="vma-v int3">int3 <span class="badge b-red">0xCC</span></div>
+      </div>
+    </div>
+    <div class="semi-row">semaphore = <span class="semi-1">1</span> &nbsp;· active</div>
+    <div class="chips" style="margin-top:8px">
+      <div class="chip c-red">⚡ breakpoint(int3) interrupt</div>
+      <div class="chip c-blue">🔗 uprobe handler</div>
+      <div class="chip c-ora">▶ eBPF program → BPF Map</div>
+    </div>
+    <div class="mem-note">→ /proc/$PID/mem : NOP→int3, semaphore++</div>
+  </div>
+
+  <div class="arrow-col">→</div>
+
+  <!-- Step 5: Deregister -->
+  <div class="step s5">
+    <div class="step-header">
+      <span class="step-num">05</span>
+      <span class="step-title">Deregister Probe</span>
+    </div>
+    <div class="vma">
+      <div class="vma-hdr">VMA — Process Memory</div>
+      <div class="vma-row">
+        <div class="vma-a">0x4011a4</div>
+        <div class="vma-v nop">nop <span class="badge b-green">0x90</span></div>
+      </div>
+    </div>
+    <div class="semi-row">semaphore = <span class="semi-0">0</span> &nbsp;· inactive</div>
+    <div class="desc" style="margin-top:10px">bpftrace 종료 시 <b>int3 → NOP</b> 복원.<br>여러 트레이서 동시 사용 시 마지막<br>해제 시점에만 NOP 복원.</div>
+    <div class="mem-note">→ /proc/$PID/mem : int3→NOP, semaphore--</div>
+  </div>
+
+</div>
+
+</body>
+</html>

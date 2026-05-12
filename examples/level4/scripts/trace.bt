@@ -1,0 +1,36 @@
+#!/usr/bin/env bpftrace
+
+BEGIN
+{
+    printf("Tracing /app/target USDT probes... Hit Ctrl+C to stop.\n\n");
+}
+
+usdt:/app/target:myapp:add__entry
+{
+    printf("ENTRY add      pid=%-6d comm=%-16s a=%-4d b=%d\n",
+           curtask->tgid, comm, arg0, arg1);
+}
+
+usdt:/app/target:myapp:add__return
+{
+    /* DTRACE_PROBE1(myapp, add__return, ret) → arg0 이 반환값 */
+    printf("RETURN add     pid=%-6d comm=%-16s ret=%d\n",
+           curtask->tgid, comm, arg0);
+}
+
+usdt:/app/target:myapp:multiply__entry
+{
+    printf("ENTRY multiply pid=%-6d comm=%-16s a=%-4d b=%d\n",
+           curtask->tgid, comm, arg0, arg1);
+}
+
+usdt:/app/target:myapp:multiply__return
+{
+    printf("RETURN multiply pid=%-6d comm=%-16s ret=%d\n",
+           curtask->tgid, comm, arg0);
+}
+
+END
+{
+    printf("\nDone.\n");
+}
