@@ -1,5 +1,6 @@
 
 target ?= level5
+container ?= shell
 COMPOSE = docker compose -f examples/$(target)/docker-compose.yml
 
 .PHONY: build build-fpm build-bpftrace run-fpm up down exec-bpftrace trace
@@ -27,10 +28,6 @@ up:
 down:
 	$(COMPOSE) down
 
-## bpftrace 컨테이너에 bash 접속
-exec-bpftrace:
-	$(COMPOSE) exec bpftrace bash
-
-## bpftrace 스크립트 실행 (예: make trace SCRIPT=request.bt)
-trace:
-	$(COMPOSE) exec bpftrace bash /scripts/run.sh /scripts/$(SCRIPT)
+## 레벨에 맞는 컨테이너 접속
+exece:
+	$(COMPOSE) exec $(container) bash
